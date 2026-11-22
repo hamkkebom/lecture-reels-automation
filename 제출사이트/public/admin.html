@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>제출 관리</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --ink:#151a24; --sub:#5d6778; --line:#d9dde5; --acc:#e8202a; --ok:#14965a; --warn:#b26a00;
+          --s-submitted:#e8202a; --s-received:#2563eb; --s-working:#b26a00; --s-ready:#7c3aed; --s-delivering:#0891b2; --s-done:#14965a; --s-deleted:#8a919e; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:"Pretendard","Malgun Gothic",system-ui,sans-serif; font-size:15px; }
+  main { max-width:980px; margin:28px auto 60px; padding:0 16px; }
+  h1 { font-size:22px; margin:0; }
+  .top { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px; }
+  .top .sp { flex:1; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; }
+  button, .btn { border:1px solid var(--line); background:#fff; color:var(--ink); border-radius:9px; padding:8px 13px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit; }
+  button.pri { background:var(--acc); border-color:var(--acc); color:#fff; }
+  button.dan { color:var(--acc); }
+  button:disabled { opacity:.5; cursor:default; }
+  input, select { font-family:inherit; font-size:14px; padding:8px 10px; border:1px solid var(--line); border-radius:9px; background:#fff; color:var(--ink); }
+  .chip { display:inline-flex; align-items:center; gap:6px; padding:6px 11px; border-radius:99px; font-size:13px; font-weight:700; background:#eceef2; color:var(--sub); }
+  .chip i { width:8px; height:8px; border-radius:50%; background:currentColor; }
+  .chip.on { background:#e3f5ec; color:var(--ok); }
+  .chip.off { background:#fdecec; color:var(--acc); }
+  .info { display:grid; grid-template-columns:1fr auto; gap:10px 16px; align-items:center; margin-bottom:16px; }
+  .info .k { color:var(--sub); font-size:13px; }
+  .info .v { font-weight:800; font-size:16px; word-break:break-all; }
+  .info .acts { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+  .bar { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin:18px 0 12px; }
+  .bar .f { border-radius:99px; padding:7px 13px; font-size:13px; }
+  .bar .f.sel { background:var(--ink); border-color:var(--ink); color:#fff; }
+  .bar input { flex:1; min-width:160px; }
+  .item { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:10px; border-left:5px solid var(--line); }
+  .item .row1 { display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; }
+  .item .t { font-weight:800; font-size:16px; }
+  .item .n { color:var(--sub); font-weight:700; }
+  .item .meta { color:var(--sub); font-size:13px; margin-top:4px; line-height:1.6; word-break:break-all; }
+  .item .row2 { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:10px; }
+  .item .row2 input.memo { flex:1; min-width:180px; }
+  .badge { font-size:12px; font-weight:800; padding:3px 9px; border-radius:99px; color:#fff; }
+  .empty { text-align:center; color:var(--sub); padding:40px 0; }
+  #login { max-width:420px; margin:80px auto; }
+  #login p { color:var(--sub); font-size:13.5px; line-height:1.6; }
+  #login input { width:100%; margin:10px 0; padding:12px; }
+  #login button { width:100%; padding:12px; }
+  #toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%); background:var(--ink); color:#fff; padding:10px 16px; border-radius:10px; font-size:14px; display:none; max-width:90vw; }
+  .err { color:var(--acc); font-weight:700; font-size:14px; min-height:1.4em; }
+  .sec-h { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
+  .sec-h b { font-size:17px; }
+  .sec-h .sp, .row .sp { flex:1; }
+  .k { color:var(--sub); font-size:13px; }
+  .acad { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:10px 0; border-top:1px solid var(--line); }
+  .acad .logo { width:88px; height:44px; border-radius:8px; background:#1d2430 center/contain no-repeat; flex:none; }
+  .acad .nm { font-weight:800; min-width:120px; }
+  .acad .cd { font-family:ui-monospace,Consolas,monospace; background:#eceef2; padding:3px 8px; border-radius:6px; }
+  .sw { display:inline-block; width:16px; height:16px; border-radius:4px; vertical-align:middle; margin-right:2px; border:1px solid rgba(0,0,0,.15); }
+  .acad .acts { display:flex; gap:6px; margin-left:auto; }
+  .tag { font-size:12px; font-weight:800; padding:3px 9px; border-radius:99px; background:#eceef2; color:var(--ink); }
+  .tag.none { background:#fdecec; color:var(--acc); }
+  dialog { border:0; border-radius:14px; padding:22px; width:min(520px, calc(100vw - 32px)); }
+  dialog::backdrop { background:rgba(15,20,30,.45); }
+  dialog h2 { margin:0 0 10px; font-size:19px; }
+  dialog label { display:block; font-size:13.5px; font-weight:700; margin:12px 0 0; }
+  dialog label > input:not([type=color]), dialog label > select { display:block; width:100%; margin-top:5px; }
+  dialog .row { display:flex; gap:8px; align-items:center; margin-top:5px; }
+  dialog .row input { flex:1; }
+  dialog .row.end { margin-top:18px; }
+  dialog .colors { display:flex; gap:18px; flex-wrap:wrap; }
+  dialog .colors input { display:block; width:64px; height:36px; padding:2px; margin-top:5px; }
+  .logoPrev img { margin-top:8px; max-width:240px; max-height:90px; background:#1d2430; border-radius:8px; padding:6px; }
+  table.bill { width:100%; border-collapse:collapse; font-size:14px; }
+  table.bill th, table.bill td { text-align:left; padding:9px 8px; border-top:1px solid var(--line); }
+  table.bill th { color:var(--sub); font-size:12.5px; font-weight:700; border-top:0; }
+  table.bill td.num, table.bill th.num { text-align:right; font-variant-numeric:tabular-nums; }
+  table.bill tr.tot td { font-weight:800; border-top:2px solid var(--ink); }
+  table.bill.det td { font-size:13.5px; }
+  table.bill input.rl { width:64px; padding:5px 7px; text-align:right; }
+  table.bill select { padding:5px 7px; }
+  .billWrap { overflow-x:auto; }
+  @media (max-width:640px) { .acad .acts { margin-left:0; } }
+</style>
+</head>
+<body>
+<div id="login" class="card" hidden>
+  <h1>제출 관리</h1>
+  <p>관리자 비밀번호를 넣어 주세요. 이 브라우저에서는 30일 동안 다시 묻지 않습니다.</p>
+  <input id="tok" type="password" inputmode="numeric" autocomplete="current-password" placeholder="관리자 비밀번호">
+  <button class="pri" id="enter">들어가기</button>
+  <div class="err" id="lerr"></div>
+</div>
+
+<main id="app" hidden>
+  <div class="top">
+    <h1>제출 관리</h1>
+    <span class="chip" id="pc"><i></i>확인 중…</span>
+    <span class="sp"></span>
+    <button id="refresh">새로고침</button>
+    <button id="logout">나가기</button>
+  </div>
+
+  <div class="card">
+    <div class="sec-h"><b>학원</b><span class="k">제출 사이트: <span id="site"></span> · 학원마다 제출 코드가 달라 누가 냈는지 자동으로 구분됩니다</span><span class="sp"></span><button class="pri" id="addAcad">+ 학원 추가</button></div>
+    <div id="acads"></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="sec-h"><b>정산</b><select id="month"></select><span class="k">완료(전달)된 릴스 개수 · 처음 완료된 달 기준</span><span class="sp"></span><button id="billDet">자세히</button><button class="pri" id="billCsv">엑셀로 받기</button></div>
+    <div class="billWrap" id="billSum"></div>
+    <div class="billWrap" id="billList" hidden></div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <div class="sec-h"><b>텔레그램 알림</b><span class="chip" id="tgChip"><i></i>확인 중…</span><span class="k">새 제출과 드라이브 전달 실패를 휴대폰으로 알려 줍니다</span><span class="sp"></span><button id="tgTest" hidden>시험 알림</button><button class="dan" id="tgOff" hidden>연결 끊기</button></div>
+    <div id="tgSetup">
+      <ol class="k" style="margin:0 0 10px; padding-left:20px; line-height:1.8">
+        <li>텔레그램에서 <b>@BotFather</b>를 찾아 <b>/newbot</b>을 보내고, 봇 이름을 정하면 <b>토큰</b>(숫자:글자)을 줍니다.</li>
+        <li>방금 만든 봇을 찾아 <b>시작</b>을 누르거나 아무 말이나 보냅니다.</li>
+        <li>토큰을 아래에 붙여 넣고 <b>연결</b>을 누르면 시험 메시지가 옵니다.</li>
+      </ol>
+      <div style="display:flex; gap:8px; flex-wrap:wrap"><input id="tgTok" type="password" autocomplete="off" placeholder="봇 토큰 붙여 넣기" style="flex:1; min-width:220px"><button class="pri" id="tgGo">연결</button></div>
+      <p id="tgErr" style="color:#d33; font-weight:600; margin:8px 0 0" hidden></p>
+    </div>
+  </div>
+
+  <dialog id="dlg">
+    <form method="dialog" id="af">
+      <h2 id="dlgT">학원 추가</h2>
+      <label>학원 이름<input name="name" maxlength="40" required placeholder="예: 승리어학원"></label>
+      <label>제출 코드 (영문·숫자 6자 이상, 학원마다 다르게)<span class="row"><input name="code" maxlength="32" required pattern="[A-Za-z0-9]{6,32}"><button type="button" id="genCode">새로 만들기</button></span></label>
+      <label>스타일 틀<select name="template" id="tplSel"></select></label>
+      <p class="k" style="margin:6px 0 0">'학원색 바탕'은 제목·강조색을 어둡게 눌러 카드 바탕으로 씁니다. 어두운 색은 글자용으로 자동으로 밝혀 씁니다.</p>
+      <div class="colors">
+        <label>제목·강조색<input type="color" name="accent"></label>
+        <label>영어 단어색<input type="color" name="english"></label>
+        <label>포인트색<input type="color" name="point"></label>
+      </div>
+      <label>구글드라이브 폴더 주소 (전달할 곳, 나중에 넣어도 됨)<input name="drive" maxlength="300" placeholder="https://drive.google.com/drive/folders/..."></label>
+      <label>로고 (투명 배경 PNG)<input type="file" name="logo" accept="image/png"></label>
+      <div class="logoPrev" id="logoPrev"></div>
+      <div class="err" id="aerr"></div>
+      <div class="row end"><button type="button" class="dan" id="delAcad">학원 삭제</button><span class="sp"></span><button value="cancel" formnovalidate>취소</button><button class="pri" id="saveAcad" value="default">저장</button></div>
+    </form>
+  </dialog>
+
+  <div class="bar" id="filters"></div>
+  <div id="list"></div>
+</main>
+<div id="toast"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const LABEL = { submitted: "새 제출", received: "PC로 받음", working: "작업 중", ready: "편집 끝(전달 전)", delivering: "드라이브 전달 중", done: "완료(전달)", deleted: "원본 삭제됨" };
+const ORDER = ["submitted", "received", "working", "ready", "delivering", "done", "deleted"];
+let token = "", data = { items: [], academies: [], templates: [] }, filter = "all", query = "", acadFilter = "";
+const logoUrls = {}; // 학원 id → 로고 blob URL (인증 헤더가 필요해 fetch로 받음)
+try { token = localStorage.getItem("admin_token") || ""; } catch {}
+
+function toast(t) { const el = $("toast"); el.textContent = t; el.style.display = "block"; clearTimeout(toast.t); toast.t = setTimeout(() => el.style.display = "none", 2600); }
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c])); }
+function gb(n) { n = Number(n) || 0; return n >= 1024 ** 3 ? (n / 1024 ** 3).toFixed(2) + " GB" : (n / 1024 ** 2).toFixed(0) + " MB"; }
+function kst(iso) {
+  if (!iso) return "";
+  const d = new Date(iso); if (isNaN(d)) return "";
+  return d.toLocaleString("ko-KR", { timeZone: "Asia/Seoul", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+async function api(path, opt = {}) {
+  const r = await fetch(path, { ...opt, headers: { authorization: "Bearer " + token, "content-type": "application/json", ...(opt.headers || {}) } });
+  const d = await r.json().catch(() => ({}));
+  if (r.status === 401) { showLogin(token ? "다시 로그인해 주세요." : ""); token = ""; throw new Error("권한 없음"); }
+  if (!r.ok) throw new Error(d.error || "오류 " + r.status);
+  return d;
+}
+
+function showLogin(msg = "") { $("app").hidden = true; $("login").hidden = false; $("lerr").textContent = msg; $("tok").focus(); }
+$("enter").onclick = async () => {
+  $("lerr").textContent = "";
+  try {
+    const r = await fetch("/api/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ password: $("tok").value.trim() }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { $("lerr").textContent = d.error || "로그인 실패"; return; }
+    token = d.token;
+    await load();
+    try { localStorage.setItem("admin_token", token); } catch {}
+    $("tok").value = ""; $("login").hidden = true; $("app").hidden = false;
+  } catch (e) { if (e.message !== "권한 없음") $("lerr").textContent = e.message; }
+};
+$("tok").onkeydown = e => { if (e.key === "Enter") $("enter").click(); };
+$("logout").onclick = () => { try { localStorage.removeItem("admin_token"); } catch {} token = ""; showLogin(); };
+$("refresh").onclick = () => load().then(() => toast("새로고침했습니다")).catch(e => toast(e.message));
+
+async function load() {
+  const [d, b, t] = await Promise.all([api("/api/admin/records"), api("/api/admin/billing"), api("/api/admin/telegram").catch(() => null)]);
+  data = d; bills = b.entries || [];
+  if (t) drawTg(t);
+  render();
+}
+
+// ---- 텔레그램 알림 ----
+function drawTg(t) {
+  $("tgChip").className = "chip " + (t.connected ? "on" : "off");
+  $("tgChip").innerHTML = `<i></i>${t.connected ? "연결됨 · @" + esc(t.bot) : "연결 안 됨"}`;
+  $("tgSetup").hidden = t.connected;
+  $("tgTest").hidden = $("tgOff").hidden = !t.connected;
+}
+$("tgGo").onclick = async () => {
+  const btn = $("tgGo"), err = $("tgErr"); btn.disabled = true; btn.textContent = "연결 중…"; err.hidden = true;
+  // 메시지를 통째로 붙여 넣거나 보이지 않는 글자가 섞여도 '숫자:글자' 토큰만 골라낸다
+  const raw = $("tgTok").value, m = raw.match(/\d{5,}:[A-Za-z0-9_-]{30,}/);
+  try {
+    if (!raw.trim()) throw new Error("토큰 칸이 비어 있습니다. BotFather가 준 토큰을 붙여 넣어 주세요.");
+    const r = await api("/api/admin/telegram", { method: "POST", body: JSON.stringify({ token: m ? m[0] : raw.trim() }) });
+    $("tgTok").value = ""; drawTg({ connected: true, bot: r.bot }); toast("연결했습니다. 텔레그램에 시험 메시지가 갔습니다");
+  } catch (e) { err.textContent = "연결 안 됨: " + e.message; err.hidden = false; }
+  btn.disabled = false; btn.textContent = "연결";
+};
+$("tgTest").onclick = () => api("/api/admin/telegram/test", { method: "POST" }).then(() => toast("시험 알림을 보냈습니다")).catch(e => toast(e.message));
+$("tgOff").onclick = async () => {
+  if (!confirm("텔레그램 알림 연결을 끊을까요?")) return;
+  try { await api("/api/admin/telegram", { method: "DELETE" }); drawTg({ connected: false }); toast("연결을 끊었습니다"); } catch (e) { toast(e.message); }
+};
+
+// ---- 정산 ----
+let bills = [], month = "", billOpen = false;
+const thisMonth = () => new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 7);
+const monthLabel = m => `${m.slice(0, 4)}년 ${Number(m.slice(5))}월`;
+function acadName(e) { return (data.academies.find(a => a.id === e.academy) || {}).name || e.academyName || "학원 없음"; }
+function monthRows() { return bills.filter(e => e.month === month); }
+function billSummary(rows) {
+  const by = new Map();
+  for (const e of rows) {
+    const k = e.academy || "-";
+    const s = by.get(k) || { name: acadName(e), n: 0, reels: 0 };
+    s.n += 1; s.reels += Number(e.reels) || 0;
+    by.set(k, s);
+  }
+  return [...by.values()].sort((a, b) => a.name.localeCompare(b.name, "ko"));
+}
+function drawBilling() {
+  const months = [...new Set([thisMonth(), ...bills.map(e => e.month)])].sort().reverse();
+  if (!month || !months.includes(month)) month = thisMonth();
+  $("month").innerHTML = months.map(m => `<option value="${m}" ${m === month ? "selected" : ""}>${monthLabel(m)}</option>`).join("");
+  const rows = monthRows(), sum = billSummary(rows);
+  const tot = sum.reduce((t, s) => ({ n: t.n + s.n, reels: t.reels + s.reels }), { n: 0, reels: 0 });
+  $("billSum").innerHTML = !rows.length ? `<div class="empty" style="padding:16px 0">${monthLabel(month)}에 완료(전달)된 릴스가 없습니다.</div>` :
+    `<table class="bill"><tr><th>학원</th><th class="num">강의</th><th class="num">릴스</th></tr>
+      ${sum.map(s => `<tr><td>${esc(s.name)}</td><td class="num">${s.n}건</td><td class="num">${s.reels}개</td></tr>`).join("")}
+      <tr class="tot"><td>합계</td><td class="num">${tot.n}건</td><td class="num">${tot.reels}개</td></tr></table>`;
+  $("billDet").textContent = billOpen ? "접기" : "자세히";
+  $("billDet").disabled = !rows.length;
+  $("billCsv").disabled = !rows.length;
+  $("billList").hidden = !billOpen || !rows.length;
+  if ($("billList").hidden) return;
+  const opts = cur => [...new Set([...months, prevMonth(cur), nextMonth(cur)])].sort().reverse()
+    .map(m => `<option value="${m}" ${m === cur ? "selected" : ""}>${monthLabel(m)}</option>`).join("");
+  $("billList").innerHTML = `<table class="bill det" style="margin-top:14px"><tr><th>완료</th><th>학원</th><th>강의 제목 / 이름</th><th class="num">릴스</th><th>정산 달</th><th></th></tr>
+    ${rows.map(e => `<tr data-id="${esc(e.id)}"><td>${kst(e.at)}${e.via === "drive" ? "" : " <span class='k'>(직접)</span>"}</td><td>${esc(acadName(e))}</td>
+      <td>${esc(e.title)} <span class="k">${esc(e.name)}</span></td>
+      <td class="num"><input class="rl" type="number" min="1" max="999" value="${esc(e.reels)}"></td>
+      <td><select class="mo">${opts(e.month)}</select></td>
+      <td><button class="dan rmb" title="이 건을 정산에서 뺍니다">빼기</button></td></tr>`).join("")}</table>`;
+  $("billList").querySelectorAll("tr[data-id]").forEach(tr => {
+    const e = bills.find(x => x.id === tr.dataset.id);
+    tr.querySelector(".rl").onchange = ev => editBill(e, { reels: Number(ev.target.value) });
+    tr.querySelector(".mo").onchange = ev => editBill(e, { month: ev.target.value });
+    tr.querySelector(".rmb").onclick = () => removeBill(e);
+  });
+}
+function prevMonth(m) { const d = new Date(Date.UTC(+m.slice(0, 4), +m.slice(5) - 2, 1)); return d.toISOString().slice(0, 7); }
+function nextMonth(m) { const d = new Date(Date.UTC(+m.slice(0, 4), +m.slice(5), 1)); return d.toISOString().slice(0, 7); }
+async function editBill(e, patch) {
+  try { await api("/api/admin/billing", { method: "POST", body: JSON.stringify({ id: e.id, ...patch }) }); Object.assign(e, patch.reels ? { reels: String(patch.reels) } : patch); toast("정산을 고쳤습니다"); drawBilling(); }
+  catch (err) { toast(err.message); drawBilling(); }
+}
+async function removeBill(e) {
+  if (!confirm(`'${e.title}' (${e.name}) 릴스 ${e.reels}개를 정산에서 뺄까요?\n제출 기록은 그대로 남습니다.`)) return;
+  try { await api("/api/admin/billing?id=" + encodeURIComponent(e.id), { method: "DELETE" }); bills = bills.filter(x => x !== e); toast("정산에서 뺐습니다"); drawBilling(); }
+  catch (err) { toast(err.message); }
+}
+function csvCell(v) { v = String(v ?? ""); return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v; }
+function exportCsv() {
+  const rows = monthRows();
+  const lines = [[`${monthLabel(month)} 정산`], [], ["학원", "강의 수", "릴스 수"]];
+  const sum = billSummary(rows);
+  for (const s of sum) lines.push([s.name, s.n, s.reels]);
+  lines.push(["합계", sum.reduce((t, s) => t + s.n, 0), sum.reduce((t, s) => t + s.reels, 0)], [], ["완료 날짜", "학원", "강의 제목", "이름", "릴스 수", "전달 방법"]);
+  for (const e of [...rows].sort((a, b) => acadName(a).localeCompare(acadName(b), "ko") || String(a.at).localeCompare(String(b.at))))
+    lines.push([new Date(e.at).toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" }), acadName(e), e.title, e.name, Number(e.reels), e.via === "drive" ? "드라이브" : "직접"]);
+  const text = "﻿" + lines.map(r => r.map(csvCell).join(",")).join("\r\n"); // BOM: 엑셀에서 한글이 안 깨지게
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" }));
+  a.download = `정산_${month}.csv`;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+$("month").onchange = e => { month = e.target.value; drawBilling(); };
+$("billDet").onclick = () => { billOpen = !billOpen; drawBilling(); };
+$("billCsv").onclick = exportCsv;
+
+function pcChip() {
+  const el = $("pc");
+  if (!data.pcSeen) { el.className = "chip off"; el.innerHTML = "<i></i>내 PC 받아오기: 기록 없음"; return; }
+  const min = Math.round((Date.now() - new Date(data.pcSeen)) / 60000);
+  const on = min <= 11;
+  el.className = "chip " + (on ? "on" : "off");
+  el.innerHTML = `<i></i>내 PC 받아오기: ${on ? "켜짐" : "꺼짐"} (${min < 1 ? "방금" : min < 120 ? min + "분 전" : kst(data.pcSeen)} 확인)`;
+  el.title = on ? "5분마다 새 제출을 받아 오고 있습니다." : "바탕화면의 '제출 받기 켜기'를 실행하세요.";
+}
+
+function render() {
+  $("site").textContent = location.origin.replace(/^https?:\/\//, "");
+  pcChip();
+  drawAcads();
+  drawBilling();
+  const inAcad = data.items.filter(i => !acadFilter || (acadFilter === "-" ? !i.academy : i.academy === acadFilter));
+  const counts = { all: inAcad.length };
+  for (const s of ORDER) counts[s] = inAcad.filter(i => i.status === s).length;
+  $("filters").innerHTML = ["all", ...ORDER].map(f =>
+    `<button class="f ${filter === f ? "sel" : ""}" data-f="${f}">${f === "all" ? "전체" : LABEL[f]} ${counts[f]}</button>`).join("")
+    + `<select id="af2"><option value="">모든 학원</option>${data.academies.map(a => `<option value="${a.id}" ${acadFilter === a.id ? "selected" : ""}>${esc(a.name)}</option>`).join("")}<option value="-" ${acadFilter === "-" ? "selected" : ""}>학원 없음</option></select>`
+    + `<input id="q" placeholder="이름·강의 제목 검색" value="${esc(query)}">`;
+  $("filters").querySelectorAll("[data-f]").forEach(b => b.onclick = () => { filter = b.dataset.f; render(); });
+  $("af2").onchange = e => { acadFilter = e.target.value; render(); };
+  $("q").oninput = e => { query = e.target.value; drawList(); };
+  drawList();
+}
+
+function tplName(id) { return (data.templates.find(t => t.id === id) || {}).name || id; }
+function drawAcads() {
+  const box = $("acads");
+  if (!data.academies.length) { box.innerHTML = `<div class="empty" style="padding:16px 0">아직 등록한 학원이 없습니다. '+ 학원 추가'를 눌러 주세요.</div>`; return; }
+  box.innerHTML = data.academies.map(a => {
+    const n = data.items.filter(i => i.academy === a.id).length;
+    return `<div class="acad" data-id="${a.id}">
+      <div class="logo" style="${logoUrls[a.id] ? `background-image:url(${logoUrls[a.id]})` : ""}" title="${a.hasLogo ? "" : "로고 없음"}">${a.hasLogo ? "" : "<span class='k' style='color:#aab;display:block;text-align:center;line-height:44px'>로고 없음</span>"}</div>
+      <span class="nm">${esc(a.name)}</span>
+      <span class="cd" title="제출 코드">${esc(a.code)}</span>
+      <span class="k">${esc(tplName(a.template))}</span>
+      <span>${["accent", "english", "point"].map(k => `<i class="sw" style="background:#${a.colors[k]}"></i>`).join("")}</span>
+      <span class="k">${a.drive ? "드라이브 연결" : "드라이브 미정"} · 제출 ${n}건</span>
+      <span class="acts"><button class="guide">안내 문구 복사</button><button class="edit">수정</button></span>
+    </div>`;
+  }).join("");
+  box.querySelectorAll(".acad").forEach(el => {
+    const a = data.academies.find(x => x.id === el.dataset.id);
+    el.querySelector(".guide").onclick = () => copyGuide(a);
+    el.querySelector(".edit").onclick = () => openAcad(a);
+  });
+  for (const a of data.academies) if (a.hasLogo && !logoUrls[a.id]) loadLogo(a);
+}
+async function loadLogo(a) {
+  try {
+    const r = await fetch("/api/admin/academy/logo?id=" + a.id, { headers: { authorization: "Bearer " + token } });
+    if (!r.ok) return;
+    logoUrls[a.id] = URL.createObjectURL(await r.blob());
+    const el = document.querySelector(`.acad[data-id="${a.id}"] .logo`);
+    if (el) { el.style.backgroundImage = `url(${logoUrls[a.id]})`; el.innerHTML = ""; }
+  } catch {}
+}
+async function copyGuide(a) {
+  const text = `[${a.name} 강의 영상 제출 안내]\n아래 사이트에서 녹화한 강의 원본을 올려 주세요.\n주소: ${location.origin}\n제출 코드: ${a.code}\n올리는 동안 창을 닫지 말아 주세요.`;
+  try { await navigator.clipboard.writeText(text); toast(`${a.name} 안내 문구를 복사했습니다`); } catch { prompt("아래 문구를 복사하세요", text); }
+}
+
+// ---- 학원 추가·수정 창 ----
+let editing = null;
+function randCode() { const c = "abcdefghjkmnpqrstuvwxyz23456789"; return Array.from(crypto.getRandomValues(new Uint8Array(8)), x => c[x % c.length]).join(""); }
+function openAcad(a) {
+  editing = a || null;
+  const f = $("af");
+  f.reset();
+  $("dlgT").textContent = a ? `${a.name} 수정` : "학원 추가";
+  $("tplSel").innerHTML = data.templates.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("");
+  const c = a ? a.colors : { accent: "FFD400", english: "3DDC5A", point: "FF8A1F" };
+  f.name.value = a ? a.name : "";
+  f.code.value = a ? a.code : randCode();
+  f.template.value = a ? a.template : data.templates[0]?.id;
+  f.accent.value = "#" + c.accent; f.english.value = "#" + c.english; f.point.value = "#" + c.point;
+  f.drive.value = a ? a.drive : "";
+  $("logoPrev").innerHTML = a && logoUrls[a.id] ? `<img src="${logoUrls[a.id]}" alt="">` : "";
+  $("delAcad").hidden = !a;
+  $("aerr").textContent = "";
+  $("dlg").showModal();
+}
+$("addAcad").onclick = () => openAcad(null);
+$("genCode").onclick = () => { $("af").code.value = randCode(); };
+$("af").logo.onchange = e => {
+  const file = e.target.files[0];
+  $("logoPrev").innerHTML = file ? `<img src="${URL.createObjectURL(file)}" alt="">` : "";
+};
+$("saveAcad").onclick = async e => {
+  e.preventDefault();
+  const f = $("af");
+  if (!f.reportValidity()) return;
+  $("aerr").textContent = "";
+  const body = { id: editing?.id, name: f.name.value, code: f.code.value.trim(), template: f.template.value, drive: f.drive.value,
+                 colors: { accent: f.accent.value.slice(1), english: f.english.value.slice(1), point: f.point.value.slice(1) } };
+  try {
+    const { academy } = await api("/api/admin/academy", { method: "POST", body: JSON.stringify(body) });
+    const file = f.logo.files[0];
+    if (file) {
+      const r = await fetch("/api/admin/academy/logo?id=" + academy.id, { method: "PUT", headers: { authorization: "Bearer " + token, "content-type": "image/png" }, body: file });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error("학원은 저장했지만 로고를 못 올렸습니다: " + (d.error || r.status));
+      delete logoUrls[academy.id];
+    }
+    $("dlg").close();
+    toast(editing ? "학원 정보를 고쳤습니다" : `${academy.name}을(를) 추가했습니다. 제출 코드: ${academy.code}`);
+    load();
+  } catch (err) { $("aerr").textContent = err.message; }
+};
+$("delAcad").onclick = async () => {
+  if (!editing || !confirm(`'${editing.name}'을(를) 삭제할까요?\n이 학원의 제출 코드로는 더 이상 제출할 수 없습니다. 지난 제출 기록은 남습니다.`)) return;
+  try { await api("/api/admin/academy?id=" + editing.id, { method: "DELETE" }); $("dlg").close(); toast("학원을 삭제했습니다"); load(); }
+  catch (err) { $("aerr").textContent = err.message; }
+};
+
+function drawList() {
+  const q = query.trim().toLowerCase();
+  const items = data.items.filter(i => (filter === "all" || i.status === filter)
+    && (!acadFilter || (acadFilter === "-" ? !i.academy : i.academy === acadFilter))
+    && (!q || `${i.name} ${i.title} ${i.filename} ${i.memo} ${i.academyName || ""}`.toLowerCase().includes(q)));
+  if (!items.length) { $("list").innerHTML = `<div class="empty">${data.items.length ? "조건에 맞는 제출이 없습니다." : "아직 제출이 없습니다."}</div>`; return; }
+  $("list").innerHTML = items.map(i => {
+    const color = `var(--s-${i.status || "submitted"})`;
+    const expired = i.status === "submitted" && !i.onSite;
+    const changed = i.changed && ["working", "ready", "delivering", "done"].includes(i.status) ? `${LABEL[i.status]} ${kst(i.changed)}` : "";
+    const when = [`제출 ${kst(i.submitted)}`, i.received && `PC로 받음 ${kst(i.received)}`, changed, i.delivered && `드라이브 전달 ${kst(i.delivered)}`,
+                  i.deleted && `원본 삭제 ${kst(i.deleted)}`, i.consent && "강사 동의 확인함", i.reels && `<b>릴스 ${esc(i.reels)}개</b>`].filter(Boolean).join(" · ");
+    const acad = data.academies.find(a => a.id === i.academy);
+    const canDeliver = ["ready", "done"].includes(i.status) && Number(i.reels) > 0;
+    return `<div class="item" style="border-left-color:${color}" data-id="${esc(i.id)}">
+      <div class="row1">
+        <span class="badge" style="background:${color}">${LABEL[i.status] || "새 제출"}</span>
+        ${i.academy ? `<span class="tag">${esc(i.academyName)}</span>` : `<span class="tag none">학원 없음</span>`}
+        <span class="t">${esc(i.title)}</span><span class="n">${esc(i.name)}</span>
+      </div>
+      <div class="meta">${esc(i.filename)} · ${gb(i.size)} · ${when}${i.onSite ? " · <b>사이트에 원본 있음</b>" : ""}${expired ? " · <b style='color:var(--acc)'>원본이 사이트에 없음(만료)</b>" : ""}</div>
+      <div class="row2">
+        <select class="st">${ORDER.map(s => `<option value="${s}" ${s === i.status ? "selected" : ""}>${LABEL[s]}</option>`).join("")}</select>
+        ${data.academies.length ? `<select class="ac" title="학원 바꾸기"><option value="" disabled ${i.academy ? "" : "selected"}>학원 지정…</option>${data.academies.map(a => `<option value="${a.id}" ${a.id === i.academy ? "selected" : ""}>${esc(a.name)}</option>`).join("")}</select>` : ""}
+        <input class="memo" maxlength="100" placeholder="메모 (예: 11/25 카톡으로 전달)" value="${esc(i.memo)}">
+        ${canDeliver ? `<button class="pri deliver" title="${acad && acad.drive ? "이 학원 드라이브 폴더로 올립니다" : "학원 설정에 드라이브 폴더를 먼저 넣어 주세요"}">${i.status === "done" ? "다시 전달" : "드라이브로 전달"}</button>` : ""}
+        ${i.onSite ? `<button class="dl">내려받기</button><button class="dan rmraw">원본 삭제</button>` : ""}
+        <button class="dan rmrec" title="이 기록을 목록에서 완전히 지웁니다">기록 삭제</button>
+      </div>
+    </div>`;
+  }).join("");
+  $("list").querySelectorAll(".item").forEach(el => {
+    const it = data.items.find(x => x.id === el.dataset.id);
+    el.querySelector(".st").onchange = e => save(it, { status: e.target.value });
+    const ac = el.querySelector(".ac");
+    if (ac) ac.onchange = e => {
+      const a = data.academies.find(x => x.id === e.target.value);
+      save(it, { academy: a.id }).then(() => { it.academyName = a.name; render(); });
+    };
+    const memo = el.querySelector(".memo");
+    memo.onkeydown = e => { if (e.key === "Enter") memo.blur(); };
+    memo.onblur = () => { if (memo.value !== (it.memo || "")) save(it, { memo: memo.value }); };
+    const dv = el.querySelector(".deliver"); if (dv) dv.onclick = () => deliver(it);
+    const dl = el.querySelector(".dl"); if (dl) dl.onclick = () => download(it, dl);
+    const rr = el.querySelector(".rmraw"); if (rr) rr.onclick = () => removeRaw(it);
+    el.querySelector(".rmrec").onclick = () => removeRec(it);
+  });
+}
+
+async function save(it, patch) {
+  try { await api("/api/admin/status", { method: "POST", body: JSON.stringify({ id: it.id, ...patch }) }); Object.assign(it, patch); toast("저장했습니다"); if (patch.status) render(); }
+  catch (e) { toast("저장 못 함: " + e.message); }
+}
+async function deliver(it) {
+  const a = data.academies.find(x => x.id === it.academy);
+  if (!a) return alert("이 제출에 학원이 지정되지 않았습니다. 학원을 먼저 골라 주세요.");
+  if (!a.drive) return alert(`${a.name} 설정에 구글드라이브 폴더 주소가 없습니다. 학원 '수정'에서 먼저 넣어 주세요.`);
+  if (!confirm(`'${it.title}' (${it.name}) 릴스 ${it.reels}개를 ${a.name} 드라이브 폴더로 올릴까요?\n내 PC가 5분 안에 올리고, 다 올리면 '완료(전달)'로 바뀝니다.`)) return;
+  try { await api("/api/admin/status", { method: "POST", body: JSON.stringify({ id: it.id, status: "delivering" }) }); toast("전달을 요청했습니다. 내 PC가 곧 올립니다."); load(); }
+  catch (e) { toast(e.message); }
+}
+async function download(it, btn) {
+  btn.disabled = true;
+  try {
+    const { url } = await api("/api/admin/link", { method: "POST", body: JSON.stringify({ key: it.key }) });
+    const a = document.createElement("a"); a.href = url; a.rel = "noopener"; document.body.appendChild(a); a.click(); a.remove();
+    toast("내려받기를 시작했습니다. 다 받으면 상태를 'PC로 받음'으로 바꿔 주세요.");
+  } catch (e) { toast(e.message); }
+  finally { btn.disabled = false; }
+}
+async function removeRaw(it) {
+  if (!confirm(`'${it.title}' (${it.name}) 원본을 사이트에서 지울까요?\n내 PC로 받지 않았다면 다시 받을 수 없습니다.`)) return;
+  try { await api("/api/admin/delete?reason=deleted&key=" + encodeURIComponent(it.key), { method: "DELETE" }); toast("원본을 지웠습니다"); load(); }
+  catch (e) { toast(e.message); }
+}
+async function removeRec(it) {
+  const extra = it.onSite ? "\n사이트에 남은 원본도 함께 지워집니다." : "";
+  if (!confirm(`'${it.title}' (${it.name}) 기록을 목록에서 지울까요?${extra}\n되돌릴 수 없습니다.`)) return;
+  try { await api("/api/admin/record?id=" + encodeURIComponent(it.id), { method: "DELETE" }); toast("기록을 지웠습니다"); load(); }
+  catch (e) { toast(e.message); }
+}
+
+// 30초마다 새로고침 (메모를 쓰는 중이면 건너뜀)
+setInterval(() => {
+  if ($("app").hidden || document.hidden || $("dlg").open) return;
+  const a = document.activeElement;
+  if (a && (a.classList.contains("memo") || a.id === "q" || a.tagName === "SELECT")) return;
+  load().catch(() => {});
+}, 30000);
+
+if (token) load().then(() => { $("app").hidden = false; }).catch(e => { if (e.message !== "권한 없음") showLogin(e.message); });
+else showLogin();
+</script>
+</body>
+</html>

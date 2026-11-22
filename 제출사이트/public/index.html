@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>강의 영상 제출</title>
+<style>
+  :root { --bg:#f5f6f8; --card:#fff; --ink:#151a24; --sub:#5d6778; --line:#d9dde5; --acc:#e8202a; --ok:#14965a; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family:"Pretendard","Malgun Gothic",system-ui,sans-serif; }
+  main { max-width:560px; margin:40px auto; padding:0 16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:28px; }
+  h1 { font-size:22px; margin:0 0 6px; }
+  p.lead { color:var(--sub); margin:0 0 22px; font-size:14px; line-height:1.6; }
+  label { display:block; font-weight:700; font-size:14px; margin:16px 0 6px; }
+  input[type=text], input[type=password] { width:100%; padding:12px; border:1px solid var(--line); border-radius:9px; font-size:15px; }
+  .drop { border:2px dashed var(--line); border-radius:12px; padding:26px 14px; text-align:center; color:var(--sub); cursor:pointer; font-size:14px; }
+  .drop.has { border-color:var(--ink); color:var(--ink); font-weight:700; }
+  button { width:100%; margin-top:22px; padding:14px; border:0; border-radius:10px; background:var(--acc); color:#fff; font-size:16px; font-weight:800; cursor:pointer; }
+  button:disabled { background:#b9bec8; cursor:default; }
+  .bar { height:12px; background:#eceef2; border-radius:8px; overflow:hidden; margin-top:20px; display:none; }
+  .bar i { display:block; height:100%; width:0; background:var(--acc); transition:width .3s; }
+  #msg { margin-top:12px; font-size:14px; line-height:1.6; min-height:1.6em; }
+  #msg.ok { color:var(--ok); font-weight:700; }
+  #msg.err { color:var(--acc); font-weight:700; }
+  label.agree { display:flex; gap:8px; align-items:flex-start; font-weight:600; font-size:13.5px; line-height:1.5; margin-top:18px; cursor:pointer; }
+  label.agree input { width:18px; height:18px; margin:1px 0 0; flex:none; }
+  .note { color:var(--sub); font-size:12.5px; line-height:1.6; margin-top:18px; }
+</style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <h1>강의 영상 제출</h1>
+    <p class="lead">녹화한 강의 원본을 올려 주세요. 릴스로 만들어 따로 전달드립니다.</p>
+
+    <label for="code">제출 코드</label>
+    <input id="code" type="password" autocomplete="off">
+
+    <label for="name">이름</label>
+    <input id="name" type="text" maxlength="40" placeholder="예: 김민수">
+
+    <label for="title">강의 제목</label>
+    <input id="title" type="text" maxlength="80" placeholder="예: 그래머 머스트 1강">
+
+    <label>영상 파일</label>
+    <div class="drop" id="drop">여기를 눌러 파일을 고르거나 끌어다 놓으세요</div>
+    <input id="file" type="file" accept="video/*" hidden>
+
+    <label class="agree"><input id="agree" type="checkbox"> 영상에 나오는 강사에게 촬영·편집·홍보 이용 동의를 받았습니다. (필수)</label>
+
+    <button id="go" disabled>제출하기</button>
+    <div class="bar" id="bar"><i></i></div>
+    <div id="msg"></div>
+
+    <p class="note">올리는 동안 이 창을 닫거나 컴퓨터를 잠자기 모드로 두지 마세요. 인터넷이 잠깐 끊겨도 자동으로 다시 시도합니다.<br>올린 원본은 작업이 끝나면 삭제됩니다.</p>
+  </div>
+</main>
+<script>
+const PART = 50 * 1024 * 1024, PARALLEL = 4, TRIES = 6;
+const $ = id => document.getElementById(id);
+let file = null, busy = false;
+
+for (const id of ["code", "name", "title"]) {
+  const saved = localStorage.getItem("submit_" + id);
+  if (saved && id !== "code") $(id).value = saved;
+  $(id).addEventListener("input", check);
+}
+$("agree").onchange = check;
+$("drop").onclick = () => $("file").click();
+$("file").onchange = () => pick($("file").files[0]);
+$("drop").ondragover = e => { e.preventDefault(); };
+$("drop").ondrop = e => { e.preventDefault(); pick(e.dataTransfer.files[0]); };
+
+function pick(f) {
+  if (!f) return;
+  file = f;
+  $("drop").textContent = `${f.name}  (${(f.size / 1024 ** 3).toFixed(2)} GB)`;
+  $("drop").classList.add("has");
+  check();
+}
+function check() {
+  $("go").disabled = busy || !file || !$("agree").checked ||!$("code").value || !$("name").value.trim() || !$("title").value.trim();
+}
+function say(t, cls = "") { $("msg").textContent = t; $("msg").className = cls; }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+async function api(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(d.error || ("오류 " + r.status)), { fatal: r.status === 403 || r.status === 400 });
+  return d;
+}
+
+window.addEventListener("beforeunload", e => { if (busy) { e.preventDefault(); e.returnValue = ""; } });
+
+$("go").onclick = async () => {
+  busy = true; check();
+  const code = $("code").value, name = $("name").value.trim(), title = $("title").value.trim();
+  localStorage.setItem("submit_name", name); localStorage.setItem("submit_title", title);
+  $("bar").style.display = "block";
+  let up = null;
+  try {
+    say("준비 중…");
+    up = await api("/api/start", { code, name, title, filename: file.name, size: file.size, consent: $("agree").checked });
+    const total = Math.ceil(file.size / PART), parts = new Array(total), done = new Array(total).fill(0);
+    let next = 0, t0 = Date.now();
+    const show = () => {
+      const sent = done.reduce((a, b) => a + b, 0), pct = sent / file.size;
+      $("bar").firstElementChild.style.width = (pct * 100).toFixed(1) + "%";
+      const sec = (Date.now() - t0) / 1000, speed = sent / Math.max(sec, 1);
+      const left = speed > 0 ? (file.size - sent) / speed : 0;
+      say(`올리는 중 ${(pct * 100).toFixed(1)}%  ·  ${(speed * 8 / 1e6).toFixed(0)} Mbps  ·  약 ${Math.ceil(left / 60)}분 남음`);
+    };
+    const send = i => new Promise((resolve, reject) => {
+      const blob = file.slice(i * PART, Math.min(file.size, (i + 1) * PART));
+      const x = new XMLHttpRequest();
+      x.open("PUT", `/api/part?key=${encodeURIComponent(up.key)}&uploadId=${encodeURIComponent(up.uploadId)}&part=${i + 1}`);
+      x.setRequestHeader("x-code", code);
+      x.upload.onprogress = e => { done[i] = e.loaded; show(); };
+      x.onload = () => {
+        let d = {}; try { d = JSON.parse(x.responseText); } catch {}
+        if (x.status === 200 && d.etag) resolve(d);
+        else reject(Object.assign(new Error(d.error || ("오류 " + x.status)), { fatal: x.status === 403 }));
+      };
+      x.onerror = () => reject(new Error("연결 끊김"));
+      x.send(blob);
+    });
+    const worker = async () => {
+      while (next < total) {
+        const i = next++;
+        for (let k = 1; ; k++) {
+          try { parts[i] = await send(i); done[i] = Math.min(PART, file.size - i * PART); show(); break; }
+          catch (e) {
+            done[i] = 0;
+            if (e.fatal || k >= TRIES) throw e;
+            say(`연결이 불안정해 다시 시도합니다 (${k}/${TRIES - 1})…`);
+            await sleep(2000 * k);
+          }
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(PARALLEL, total) }, worker));
+    say("마무리 중…");
+    await api("/api/complete", { code, key: up.key, uploadId: up.uploadId, parts });
+    $("bar").firstElementChild.style.width = "100%";
+    say(`${up.academyName ? up.academyName + " 강의로 " : ""}제출 완료되었습니다. (${file.name})  이제 창을 닫으셔도 됩니다.`, "ok");
+    file = null; $("drop").textContent = "다른 파일을 올리려면 여기를 누르세요"; $("drop").classList.remove("has");
+  } catch (e) {
+    if (up) api("/api/abort", { code, key: up.key, uploadId: up.uploadId }).catch(() => {});
+    say("제출하지 못했습니다: " + e.message + "  다시 시도해 주세요.", "err");
+  } finally {
+    busy = false; check();
+  }
+};
+</script>
+</body>
+</html>

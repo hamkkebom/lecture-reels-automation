@@ -1,0 +1,4 @@
+{
+  "url": "https://lecture-submit.<계정>.workers.dev",
+  "token": "배포할 때 정한 ADMIN_TOKEN 값 (40자 정도, 남에게 알리지 않음)"
+}

@@ -1,0 +1,16 @@
+# 강의 영상 제출 사이트 (Cloudflare Workers + R2)
+# 배포: 제출사이트\배포하기.md 참고
+name = "lecture-submit"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+[assets]
+directory = "public"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "lecture-submit"
+
+# 비밀값(SUBMIT_CODE: 제출 코드, ADMIN_TOKEN: 내 PC용 열쇠, ADMIN_PASSWORD: 관리자 페이지 비밀번호)은 여기 적지 않는다.
+# 배포 때: npx wrangler secret put SUBMIT_CODE / npx wrangler secret put ADMIN_TOKEN
+# 내 PC에서 시험할 때: .dev.vars 파일
